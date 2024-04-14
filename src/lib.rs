@@ -145,7 +145,7 @@ pub mod point_to_point;
 pub mod raw;
 pub mod request;
 pub mod topology;
-
+pub mod window;
 /// Re-exports all traits.
 pub mod traits {
     pub use crate::attribute::traits::*;
