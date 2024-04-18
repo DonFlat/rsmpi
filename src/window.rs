@@ -43,7 +43,7 @@ impl Window {
                 &mut window_handle
             );
             let win = Window {
-                window_vector: Vec::from_raw_parts(window_base, size, size),
+                window_vector: vec![0f64; size],
                 window_ptr: window_handle
             };
             return win;
