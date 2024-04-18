@@ -12,7 +12,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(size: usize) -> Window {
+    pub fn create(size: usize) -> Window {
         let mut win = Window {
             window_vector: vec![0f64; size],
             window_ptr: ptr::null_mut()
@@ -28,6 +28,26 @@ impl Window {
             );
         }
         return win;
+    }
+
+    pub fn allocate(size: usize) -> Window {
+        let mut window_base: *mut f64 = ptr::null_mut();
+        let mut window_handle: MPI_Win = ptr::null_mut();
+        unsafe {
+            ffi::MPI_Win_allocate(
+                (size * size_of::<c_double>()) as MPI_Aint,
+                size_of::<c_double>() as c_int,
+                RSMPI_INFO_NULL,
+                RSMPI_COMM_WORLD,
+                &mut window_base as *mut *mut _ as *mut c_void,
+                &mut window_handle
+            );
+            let win = Window {
+                window_vector: Vec::from_raw_parts(window_base, size, size),
+                window_ptr: window_handle
+            };
+            return win;
+        }
     }
 
     pub fn get_whole_vector(&mut self, target_rank: usize) {
@@ -73,5 +93,7 @@ impl Drop for Window {
         unsafe {
             ffi::MPI_Win_free(&mut self.window_ptr);
         }
+        println!("Window has been free");
     }
 }
+// from_raw_parts
