@@ -58,7 +58,7 @@ impl AllocatedWindow {
     }
 }
 
-trait WindowOperations {
+pub trait WindowOperations {
     fn get_whole_vector(&mut self, target_rank: usize);
     fn put_whole_vector(&mut self, target_rank: usize);
     fn fence(&self);
