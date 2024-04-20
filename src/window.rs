@@ -21,8 +21,8 @@ impl<'a, T> CreatedWindow<'a, T> where T: Equivalence {
         unsafe {
             ffi::MPI_Win_create(
                 win.window_vec_ptr.as_mut_ptr() as *mut c_void,
-                (size * size_of::<f64>()) as MPI_Aint,
-                size_of::<c_double>() as c_int,
+                (size * size_of::<T>()) as MPI_Aint,
+                size_of::<T>() as c_int,
                 RSMPI_INFO_NULL,
                 RSMPI_COMM_WORLD,
                 &mut win.window_base_ptr
