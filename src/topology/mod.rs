@@ -20,11 +20,12 @@
 //! - **7**: Process topologies
 //! - **Parts of sections**: 8, 10, 12
 use std::ffi::{CStr, CString};
-use std::mem::MaybeUninit;
+use std::mem::{ManuallyDrop, MaybeUninit, size_of};
 use std::os::raw::{c_char, c_int, c_void};
-use std::process;
+use std::{process, ptr};
 
 use conv::ConvUtil;
+use mpi_sys::{MPI_Aint, MPI_Win, RSMPI_INFO_NULL};
 
 #[cfg(not(msmpi))]
 use crate::Tag;
@@ -35,6 +36,7 @@ use crate::datatype::traits::*;
 use crate::ffi;
 use crate::ffi::{MPI_Comm, MPI_Group};
 use crate::raw::traits::*;
+use crate::window::{AllocatedWindow, CreatedWindow};
 use crate::with_uninitialized;
 
 mod cartesian;
@@ -121,6 +123,44 @@ impl SimpleCommunicator {
             } else {
                 panic!("Unexpected Topology type!")
             }
+        }
+    }
+    #[allow(missing_docs)]
+    pub fn create_window<'a, T>(&self, size: usize, vec_ptr: &'a mut Vec<T>) -> CreatedWindow<'a, T> where T: Equivalence {
+        let mut win = CreatedWindow {
+            window_vec_ptr: vec_ptr,
+            window_base_ptr: ptr::null_mut()
+        };
+        unsafe {
+            ffi::MPI_Win_create(
+                win.window_vec_ptr.as_mut_ptr() as *mut std::ffi::c_void,
+                (size * size_of::<T>()) as MPI_Aint,
+                size_of::<T>() as std::ffi::c_int,
+                RSMPI_INFO_NULL,
+                self.as_raw(),
+                &mut win.window_base_ptr
+            );
+        }
+        return win;
+    }
+    #[allow(missing_docs)]
+    pub fn allocate_window<T>(&self, size: usize) -> AllocatedWindow<T> where T: Equivalence {
+        let mut window_base: *mut T = ptr::null_mut();
+        let mut window_handle: MPI_Win = ptr::null_mut();
+        unsafe {
+            ffi::MPI_Win_allocate(
+                (size * size_of::<T>()) as MPI_Aint,
+                size_of::<T>() as std::ffi::c_int,
+                RSMPI_INFO_NULL,
+                self.as_raw(),
+                &mut window_base as *mut *mut _ as *mut std::ffi::c_void,
+                &mut window_handle
+            );
+            let win = AllocatedWindow {
+                window_vector: ManuallyDrop::new(Vec::from_raw_parts(window_base, size, size)),
+                window_ptr: window_handle
+            };
+            return win;
         }
     }
 
