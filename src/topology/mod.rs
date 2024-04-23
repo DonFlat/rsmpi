@@ -156,6 +156,9 @@ impl SimpleCommunicator {
                 &mut window_base as *mut *mut _ as *mut std::ffi::c_void,
                 &mut window_handle
             );
+            if window_handle.is_null() {
+                panic!("Failed to initialize window handle");
+            }
             let win = AllocatedWindow {
                 window_vector: ManuallyDrop::new(Vec::from_raw_parts(window_base, size, size)),
                 window_ptr: window_handle
