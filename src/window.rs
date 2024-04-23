@@ -84,7 +84,7 @@ fn fence(window: MPI_Win) {
     }
 }
 
-impl<T> Drop for AllocatedWindow<T> {
+impl<T> Drop for AllocatedWindow<T> where T: Equivalence {
     fn drop(&mut self) {
         unsafe {
             ffi::MPI_Win_free(&mut self.window_ptr);
@@ -92,7 +92,7 @@ impl<T> Drop for AllocatedWindow<T> {
     }
 }
 
-impl<T> Drop for CreatedWindow<T> {
+impl<'a, T> Drop for CreatedWindow<'a, T> where T: Equivalence {
     fn drop(&mut self) {
         unsafe {
             ffi::MPI_Win_free(&mut self.window_base_ptr);
