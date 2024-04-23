@@ -83,3 +83,19 @@ fn fence(window: MPI_Win) {
         ffi::MPI_Win_fence(0, window);
     }
 }
+
+impl<T> Drop for AllocatedWindow<T> {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::MPI_Win_free(&mut self.window_ptr);
+        }
+    }
+}
+
+impl<T> Drop for CreatedWindow<T> {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::MPI_Win_free(&mut self.window_base_ptr);
+        }
+    }
+}
