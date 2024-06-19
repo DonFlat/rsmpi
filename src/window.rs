@@ -27,7 +27,7 @@ pub trait WindowOperations <T> {
         target_count: usize
     );
     fn put_whole_vector(&mut self, target_rank: usize);
-    fn put_from_vector(&mut self, origin: &mut Vec<T>, target_rank: usize);
+    fn put_from_vector(&mut self, origin: &Vec<T>, target_rank: usize);
     fn fence(&self);
     fn start(&self, group: &UserGroup);
     fn complete(&self);
@@ -35,6 +35,7 @@ pub trait WindowOperations <T> {
     fn wait(&self);
     fn exclusive_lock(&self, rank: Rank);
     fn unlock(&self, rank: Rank);
+    fn flush(&self, rank: Rank);
 }
 
 
@@ -63,10 +64,10 @@ impl<'a, T> WindowOperations<T> for CreatedWindow<'a, T> where T: Equivalence {
         put(self.window_vec_ptr, target_rank, self.window_base_ptr);
     }
 
-    fn put_from_vector(&mut self, origin: &mut Vec<T>, target_rank: usize) {
+    fn put_from_vector(&mut self, origin: &Vec<T>, target_rank: usize) {
         unsafe {
             ffi::MPI_Put(
-                origin.as_mut_ptr() as *mut c_void,
+                origin.as_ptr() as *const c_void,
                 origin.len() as c_int,
                 T::equivalent_datatype().as_raw(),
                 target_rank as c_int,
@@ -117,6 +118,12 @@ impl<'a, T> WindowOperations<T> for CreatedWindow<'a, T> where T: Equivalence {
             ffi::MPI_Win_unlock(rank as c_int, self.window_base_ptr);
         }
     }
+
+    fn flush(&self, rank: Rank) {
+        unsafe {
+            ffi::MPI_Win_flush(rank as c_int, self.window_base_ptr);
+        }
+    }
 }
 
 impl<T> WindowOperations<T> for AllocatedWindow<T> where T: Equivalence {
@@ -143,10 +150,10 @@ impl<T> WindowOperations<T> for AllocatedWindow<T> where T: Equivalence {
         put(&mut self.window_vector, target_rank, self.window_ptr);
     }
 
-    fn put_from_vector(&mut self, origin: &mut Vec<T>, target_rank: usize) {
+    fn put_from_vector(&mut self, origin: &Vec<T>, target_rank: usize) {
         unsafe {
             ffi::MPI_Put(
-                origin.as_mut_ptr() as *mut c_void,
+                origin.as_ptr() as *const c_void,
                 origin.len() as c_int,
                 T::equivalent_datatype().as_raw(),
                 target_rank as c_int,
@@ -194,6 +201,12 @@ impl<T> WindowOperations<T> for AllocatedWindow<T> where T: Equivalence {
     fn unlock(&self, rank: Rank) {
         unsafe {
             ffi::MPI_Win_unlock(rank as c_int, self.window_ptr);
+        }
+    }
+
+    fn flush(&self, rank: Rank) {
+        unsafe {
+            ffi::MPI_Win_flush(rank as c_int, self.window_ptr);
         }
     }
 }
