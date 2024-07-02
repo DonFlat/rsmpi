@@ -128,17 +128,17 @@ impl SimpleCommunicator {
     #[allow(missing_docs)]
     pub fn create_window<'a, T>(&self, size: usize, vec_ptr: &'a mut Vec<T>) -> CreatedWindow<'a, T> where T: Equivalence {
         let mut win = CreatedWindow {
-            window_vec_ptr: vec_ptr,
-            window_base_ptr: ptr::null_mut()
+            window_vec: vec_ptr,
+            window_handle: ptr::null_mut()
         };
         unsafe {
             ffi::MPI_Win_create(
-                win.window_vec_ptr.as_mut_ptr() as *mut std::ffi::c_void,
+                win.window_vec.as_mut_ptr() as *mut std::ffi::c_void,
                 (size * size_of::<T>()) as MPI_Aint,
                 size_of::<T>() as std::ffi::c_int,
                 RSMPI_INFO_NULL,
                 self.as_raw(),
-                &mut win.window_base_ptr
+                &mut win.window_handle
             );
         }
         return win;
@@ -160,8 +160,8 @@ impl SimpleCommunicator {
                 panic!("Failed to initialize window handle");
             }
             let win = AllocatedWindow {
-                window_vector: ManuallyDrop::new(Vec::from_raw_parts(window_base, size, size)),
-                window_ptr: window_handle
+                window_vec: ManuallyDrop::new(Vec::from_raw_parts(window_base, size, size)),
+                window_handle: window_handle
             };
             return win;
         }
