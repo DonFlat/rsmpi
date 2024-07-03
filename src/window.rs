@@ -16,11 +16,11 @@ pub struct AllocatedWindow<T> where T: Equivalence {
     pub window_handle: ffi::MPI_Win
 }
 
-pub trait Communication<T> {
+pub trait Communication<T> where T: Equivalence{
     fn put_from_vector(&self, origin: &Vec<T>, target_rank: usize);
     fn get_from_vector(&self, origin: &mut Vec<T>, target_rank: usize);
-    fn put(&self, origin: &Vec<T>, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize);
-    fn get(&self, origin: &mut Vec<T>, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize);
+    fn put(&self, origin: &Vec<T>, origin_disp: usize, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize);
+    fn get(&self, origin: &mut Vec<T>, origin_disp: usize, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize);
     fn put_whole_vector(&self, target_rank: usize);
     fn get_whole_vector(&mut self, target_rank: usize);
 }
@@ -37,28 +37,28 @@ pub trait Synchronization {
 
 impl<T> Communication<T> for AllocatedWindow<T> where T: Equivalence {
     fn put_from_vector(&self, origin: &Vec<T>, target_rank: usize) {
-        common_put(origin, origin.len(), target_rank, 0, origin.len(), self.window_handle);
+        common_put(origin.as_ptr(), origin.len(), target_rank, 0, origin.len(), self.window_handle);
     }
 
     fn get_from_vector(&self, origin: &mut Vec<T>, target_rank: usize) {
-        common_get(origin, origin.len(), target_rank, 0, origin.len(), self.window_handle);
+        common_get(origin.as_mut_ptr(), origin.len(), target_rank, 0, origin.len(), self.window_handle);
     }
 
-    fn put(&self, origin: &Vec<T>, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize) {
-        common_put(origin, origin_count, target_rank, target_disp, target_count, self.window_handle);
+    fn put(&self, origin: &Vec<T>, origin_disp: usize, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize) {
+        unsafe { common_put(origin.as_ptr().add(origin_disp), origin_count, target_rank, target_disp, target_count, self.window_handle); }
     }
 
-    fn get(&self, origin: &mut Vec<T>, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize) {
-        common_get(origin, origin_count, target_rank, target_disp, target_count, self.window_handle);
+    fn get(&self, origin: &mut Vec<T>, origin_disp: usize, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize) {
+        unsafe { common_get(origin.as_mut_ptr().add(origin_disp), origin_count, target_rank, target_disp, target_count, self.window_handle); }
     }
 
     fn put_whole_vector(&self, target_rank: usize) {
-        common_put(&self.window_vec, self.window_vec.len(), target_rank, 0, self.window_vec.len(), self.window_handle);
+        common_put(self.window_vec.as_ptr(), self.window_vec.len(), target_rank, 0, self.window_vec.len(), self.window_handle);
     }
 
     fn get_whole_vector(&mut self, target_rank: usize) {
         let len = self.window_vec.len();
-        common_get(&mut self.window_vec, len, target_rank, 0, len, self.window_handle);
+        common_get(self.window_vec.as_mut_ptr(), len, target_rank, 0, len, self.window_handle);
     }
 }
 
@@ -104,10 +104,10 @@ impl <T> Synchronization for AllocatedWindow<T> where T: Equivalence{
     }
 }
 
-fn common_put<T>(origin: &Vec<T>, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize, window: ffi::MPI_Win) where T: Equivalence {
+fn common_put<T>(origin: *const T, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize, window: ffi::MPI_Win) where T: Equivalence {
     unsafe {
         ffi::MPI_Put(
-            origin.as_ptr() as *const c_void,
+            origin as *const c_void,
             origin_count as c_int,
             T::equivalent_datatype().as_raw(),
             target_rank as c_int,
@@ -119,10 +119,10 @@ fn common_put<T>(origin: &Vec<T>, origin_count: usize, target_rank: usize, targe
     }
 }
 
-fn common_get<T>(origin: &mut Vec<T>, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize, window: ffi::MPI_Win) where T: Equivalence {
+fn common_get<T>(origin: *mut T, origin_count: usize, target_rank: usize, target_disp: usize, target_count: usize, window: ffi::MPI_Win) where T: Equivalence {
     unsafe {
         ffi::MPI_Get(
-            origin.as_mut_ptr() as *mut c_void,
+            origin as *mut c_void,
             origin_count as c_int,
             T::equivalent_datatype().as_raw(),
             target_rank as c_int,
